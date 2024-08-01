@@ -1,8 +1,8 @@
 If you are here please check out [smart-splits.nvim](https://github.com/mrjones2014/smart-splits.nvim).
 It has more functionalities and integrations. I put wezterm-mux.nvim together before knowing about smart-splits.nvim.
 
-
 # Weztem Mux + Nvim
+
 This plugin is inspired by [Vim Tmux Navigator](https://github.com/christoomey/vim-tmux-navigator),
 it allows to seemingly navigate between Wezterm panes and Nvim windows.
 It requires some minor configuration in the Wezterm side and setup keybindings in NeoVim.
@@ -15,18 +15,28 @@ If the movement is performed across neovim windows these functions work as the u
 ![Wezterm+Nvim](https://github.com/jonboh/wezterm-mux.nvim/blob/media/wezterm_mux_nvim.gif?raw=true)
 
 ## Installation
+
 Packer:
+
 ```lua
 use {"jonboh/wezterm-mux.nvim"}
 ```
 
-I've only tested it with Packer, but given that this plugin is quite small
-and doesn't have configuration I think it should work on any other plugin
-manager. Let me know if it does not.
+Lazy:
+
+```lua
+return {
+  {
+    "jonboh/wezterm-mux.nvim",
+  },
+}
+```
 
 ## NeoVim Config
+
 At some point in your NeoVim config you'll need to bind the keys you use to navigate between windows
 to the functions of this plugin
+
 ```lua
 local mux = require("wezterm-mux")
 vim.keymap.set("n", "<C-h>", mux.wezterm_move_left)
@@ -37,58 +47,78 @@ vim.keymap.set("n", "<A-x>", "<C-w>q") -- some actions dont need from a specific
 ```
 
 ## Wezterm Config
+
 You should add this configuration snippet some place in your `wezterm/wezterm.lua`.
 
 ```lua
 local wezterm = require("wezterm")
-local act = require("wezterm").action
-local mux = require("wezterm").mux
 
-local nvim = "/usr/bin/nvim" -- change this to the location of you nvim
+local function ends_with(str, ending)
+ return ending == "" or str:sub(-#ending) == ending
+end
 
+-- Function to check if the current process is nvim
+local function is_nvim(pgrm)
+ local nvim_executable = "nvim"
+ return ends_with(pgrm, nvim_executable)
+end
 
 local wez_nvim_action = function(window, pane, action_wez, forward_key_nvim)
-    local current_process = mux.get_window(window:window_id()):active_pane():get_foreground_process_name()
-    if current_process==nvim then
-        window:perform_action(forward_key_nvim, pane)
-    else
-        window:perform_action(action_wez, pane)
-    end
+ local current_process = pane:get_foreground_process_name()
+
+ wezterm.log_info(current_process)
+ if is_nvim(current_process) then
+  window:perform_action(forward_key_nvim, pane)
+ else
+  window:perform_action(action_wez, pane)
+ end
 end
 
 wezterm.on("move-left", function(window, pane)
-	wez_nvim_action(window, pane,
-    act.ActivatePaneDirection "Left", -- this will execute when the active pane is not a nvim instance
-    act.SendKey({key="h", mods="CTRL"}) -- this key combination will be forwarded to nvim if the active pane is a nvim instance
-    )
+ wez_nvim_action(
+  window,
+  pane,
+  wezterm.action.ActivatePaneDirection("Left"), -- this will execute when the active pane is not a nvim instance
+  wezterm.action.SendKey({ key = "h", mods = "CTRL" }) -- this key combination will be forwarded to nvim if the active pane is a nvim instance
+ )
 end)
 
 wezterm.on("move-right", function(window, pane)
-	wez_nvim_action(window, pane,
-    act.ActivatePaneDirection "Right",
-    act.SendKey({key="l", mods="CTRL"}))
-
+ wez_nvim_action(
+  window,
+  pane,
+  wezterm.action.ActivatePaneDirection("Right"),
+  wezterm.action.SendKey({ key = "l", mods = "CTRL" })
+ )
 end)
 
 wezterm.on("move-down", function(window, pane)
-	wez_nvim_action(window, pane,
-    act.ActivatePaneDirection "Down",
-    act.SendKey({key="j", mods="CTRL"}))
+ wez_nvim_action(
+  window,
+  pane,
+  wezterm.action.ActivatePaneDirection("Down"),
+  wezterm.action.SendKey({ key = "j", mods = "CTRL" })
+ )
 end)
 
 wezterm.on("move-up", function(window, pane)
-	wez_nvim_action(window, pane,
-    act.ActivatePaneDirection "Up",
-    act.SendKey({key="k", mods="CTRL"}))
+ wez_nvim_action(
+  window,
+  pane,
+  wezterm.action.ActivatePaneDirection("Up"),
+  wezterm.action.SendKey({ key = "k", mods = "CTRL" })
+ )
 end)
 
 -- you can add other actions, this unifies the way in which panes and windows are closed
 -- (you'll need to bind <A-x> -> <C-w>q)
-wezterm.on("close-pane", function (window, pane)
-   wez_nvim_action(window, pane,
-    act.CloseCurrentPane {confirm=false},
-    act.SendKey({key="x", mods="ALT"})
-   )
+wezterm.on("close-pane", function(window, pane)
+ wez_nvim_action(
+  window,
+  pane,
+  wezterm.action.CloseCurrentPane({ confirm = false }),
+  act.SendKey({ key = "x", mods = "ALT" })
+ )
 end)
 
 
@@ -114,16 +144,15 @@ config = {
 return config
 ```
 
-Make sure to modify the variable nvim to your nvim binary location. You can run this if you are unsure of its location:
-```shell
-which nvim
-```
+This way you don't have to actually find the location of your NeoVim binary, which sometimes the location contains the version of your NeoVim which means the script breaks every time you upgrade your Neovim.
 
 ## Additional help
+
 You can check the relevant files in my [wezterm config](https://github.com/jonboh/dotfiles/tree/main/.config/wezterm) and [neovim config](https://github.com/jonboh/dotfiles/blob/main/.config/nvim/after/plugin/keymap/init.lua#L36) from my dotfiles.
 
 Or open an [issue](https://github.com/jonboh/wezterm-mux.nvim/issues).
 
 ## Related
+
 - [aca/wezterm.nvim](https://github.com/aca/wezterm.nvim): Unfortunately this needs from an external binary to cross the nvim/wezterm boundary and it uses some deprecated neovim functionality.
 - [willothy/wezterm.nvim](https://github.com/willothy/wezterm.nvim): You could get something similar with this plugin, but it lacks the wezterm specific instructions.
